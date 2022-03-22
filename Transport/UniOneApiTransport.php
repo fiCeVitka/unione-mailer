@@ -30,6 +30,12 @@ class UniOneApiTransport extends AbstractApiTransport
      */
     private $locale;
 
+    /**
+     * @var bool
+     */
+    private $skipUnsubscribe = false;
+
+
     public function __construct(
         string $apiKey,
         string $locale = null,
@@ -46,6 +52,11 @@ class UniOneApiTransport extends AbstractApiTransport
     public function __toString(): string
     {
         return sprintf("unione+api://%s", $this->getEndpoint());
+    }
+
+    public function setSkipUnsubscribe(bool $value): void
+    {
+        $this->skipUnsubscribe = $value;
     }
 
     protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
@@ -93,6 +104,7 @@ class UniOneApiTransport extends AbstractApiTransport
                     ],
                 'subject' => $email->getSubject(),
                 'from_email' => $envelope->getSender()->getAddress(),
+                'skip_unsubscribe' => (int)$this->skipUnsubscribe,
             ],
         ];
 
