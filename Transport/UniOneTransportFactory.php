@@ -13,13 +13,12 @@ final class UniOneTransportFactory extends AbstractTransportFactory
     {
         $scheme = $dsn->getScheme();
         $user = $this->getUser($dsn);
-        $username = $dsn->getOption('username');
         $locale = $dsn->getOption('locale');
         $host = 'default' === $dsn->getHost() ? null : $dsn->getHost();
         $port = $dsn->getPort();
 
         if ($scheme === 'unione+api') {
-            return (new UniOneApiTransport($user, $username, $locale, $this->client, $this->dispatcher, $this->logger))
+            return (new UniOneApiTransport($user, $locale, $this->client, $this->dispatcher, $this->logger))
                 ->setHost($host)
                 ->setPort($port);
         }

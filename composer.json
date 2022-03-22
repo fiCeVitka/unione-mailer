@@ -13,13 +13,17 @@
         {
             "name": "Symfony Community",
             "homepage": "https://symfony.com/contributors"
+        },
+        {
+            "name": "Laptev Viktor",
+            "homepage": "https://github.com/fiCeVitka"
         }
     ],
     "require": {
-        "symfony/mailer": "^4.4|^5.0"
+        "symfony/mailer": "^6.0"
     },
     "require-dev": {
-        "symfony/http-client": "^4.4|^5.0",
+        "symfony/http-client": ">5.4",
         "phpunit/phpunit": "8.5.x-dev"
     },
 

@@ -16,7 +16,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class UniOneApiTransport extends AbstractApiTransport
 {
-    private const HOST = 'one.unisender.com';
+    private const HOST = 'eu1.unione.io';
     private const METHOD = 'transactional/api/v1/email/send.json';
     private const DEFAULT_LOCALE = 'en';
 
@@ -28,23 +28,16 @@ class UniOneApiTransport extends AbstractApiTransport
     /**
      * @var string
      */
-    private $username;
-
-    /**
-     * @var string
-     */
     private $locale;
 
     public function __construct(
         string $apiKey,
-        string $username,
         string $locale = null,
         HttpClientInterface $client = null,
         EventDispatcherInterface $dispatcher = null,
         LoggerInterface $logger = null
     ) {
         $this->apiKey = $apiKey;
-        $this->username = $username;
         $this->locale = $locale ?? self::DEFAULT_LOCALE;
 
         parent::__construct($client, $dispatcher, $logger);
@@ -93,7 +86,6 @@ class UniOneApiTransport extends AbstractApiTransport
     {
         $payload = [
             'api_key' => $this->apiKey,
-            'username' => $this->username,
             'message' => [
                 'body' => [
                     'html' => $email->getHtmlBody(),
