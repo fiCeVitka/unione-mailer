@@ -1,5 +1,5 @@
 {
-    "name": "ficevitka/unione-mailer",
+    "name": "pavel-sheremet/unione-mailer",
     "type": "symfony-bridge",
     "description": "Symfony UniOne Mailer Bridge",
     "keywords": [],
