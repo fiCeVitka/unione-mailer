@@ -17,6 +17,10 @@
         {
             "name": "Laptev Viktor",
             "homepage": "https://github.com/fiCeVitka"
+        },
+        {
+            "name": "Pavel Sheremet",
+            "homepage": "https://github.com/pavel-sheremet"
         }
     ],
     "require": {
