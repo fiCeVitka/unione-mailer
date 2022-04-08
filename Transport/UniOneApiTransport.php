@@ -2,7 +2,6 @@
 
 namespace Symfony\Component\Mailer\Bridge\UniOne\Transport;
 
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractApiTransport;
