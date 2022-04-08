@@ -2,6 +2,7 @@
 
 namespace Symfony\Component\Mailer\Bridge\UniOne\Transport;
 
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractApiTransport;
@@ -17,7 +18,9 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 class UniOneApiTransport extends AbstractApiTransport
 {
     private const HOST = 'eu1.unione.io';
-    private const METHOD = 'transactional/api/v1/email/send.json';
+    private const METHOD_SUPPRESSION_GET = 'transactional/api/v1/suppression/get.json';
+    private const METHOD_SUPPRESSION_DELETE = 'transactional/api/v1/suppression/delete.json';
+    private const METHOD_EMAIL_SEND = 'transactional/api/v1/email/send.json';
     private const DEFAULT_LOCALE = 'en';
 
     /**
@@ -34,6 +37,11 @@ class UniOneApiTransport extends AbstractApiTransport
      * @var bool
      */
     private $skipUnsubscribe = false;
+
+    /**
+     * @var bool
+     */
+    private $checkDelitable = false;
 
 
     public function __construct(
@@ -59,21 +67,47 @@ class UniOneApiTransport extends AbstractApiTransport
         $this->skipUnsubscribe = $value;
     }
 
-    protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
+    public function setCheckDelitable(bool $value): void
     {
-        $url = sprintf('https://%s/%s/%s', $this->getEndpoint(), $this->locale, self::METHOD);
-        $response = $this->client->request('POST', $url, ['json' => $this->getPayload($email, $envelope)]);
+        $this->checkDelitable = $value;
+    }
 
+    protected function request(string $url, array $data, string $method = 'POST'): ResponseInterface
+    {
+        $jsonData = array_merge([ 'api_key' => $this->apiKey ], $data);
+
+        $response = $this->client->request($method, $url, [ 'json' => $jsonData ]);
         $result = $response->toArray(false);
-        if (200 !== $response->getStatusCode()) {
+
+        if ($response->getStatusCode() !== 200) {
             if ('error' === ($result['status'] ?? false)) {
                 throw new HttpTransportException(
-                    sprintf('Unable to send an email: %s (code %s).', $result['message'], $result['code']),
+                    sprintf('Request error: %s (code %s).', $result['message'], $result['code']),
                     $response
                 );
             }
-            throw new HttpTransportException(sprintf('Unable to send an email (code %s).', $result['code']), $response);
+
+            throw new HttpTransportException(sprintf('Request error (code %s).', $result['code']), $response);
         }
+
+        return $response;
+    }
+
+    protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
+    {
+        if ($this->checkDelitable) {
+            try {
+                $suppressions = $this->getSuppressions($email, $envelope, true);
+
+                $this->deleteSuppressions(array_keys($suppressions));
+            } catch (HttpTransportException $exception) {}
+        }
+
+        $url = sprintf('https://%s/%s/%s', $this->getEndpoint(), $this->locale, self::METHOD_EMAIL_SEND);
+
+        $response = $this->request($url, $this->getPayload($email, $envelope));
+
+        $result = $response->toArray(false);
         $sentMessage->setMessageId($result['job_id']);
 
         return $response;
@@ -93,15 +127,50 @@ class UniOneApiTransport extends AbstractApiTransport
         return $recipients;
     }
 
+    protected function getSuppressions(Email $email, Envelope $envelope, bool $deletableOnly = false): array
+    {
+        $result = [];
+        $emails = array_column($this->getRecipients($email, $envelope), 'email');
+        $url = sprintf('https://%s/%s/%s', $this->getEndpoint(), $this->locale, self::METHOD_SUPPRESSION_GET);
+
+        foreach ($emails as $email) {
+            $response = $this->request($url, [ 'email' => $email ])->toArray();
+
+            $suppressions = $response['suppressions'] ?? [];
+            $isDeletable = (bool)count(array_filter($suppressions, fn ($suppression) => $suppression['is_deletable'] === true));
+
+            if ($deletableOnly && !$isDeletable) {
+                continue;
+            }
+
+            $result[$email] = $suppressions;
+        }
+
+        return $result;
+    }
+
+    protected function deleteSuppressions(string|array ...$emails): void
+    {
+        foreach ($emails as $email) {
+            $this->deleteSuppression($email);
+        }
+    }
+
+    protected function deleteSuppression(string $email): ResponseInterface
+    {
+        $url = sprintf('https://%s/%s/%s', $this->getEndpoint(), $this->locale, self::METHOD_SUPPRESSION_DELETE);
+
+        return $this->request($url, [ 'email' => $email ]);
+    }
+
     private function getPayload(Email $email, Envelope $envelope): array
     {
         $payload = [
-            'api_key' => $this->apiKey,
             'message' => [
                 'body' => [
                     'html' => $email->getHtmlBody(),
                     'text' => $email->getTextBody(),
-                    ],
+                ],
                 'subject' => $email->getSubject(),
                 'from_email' => $envelope->getSender()->getAddress(),
                 'skip_unsubscribe' => (int)$this->skipUnsubscribe,
