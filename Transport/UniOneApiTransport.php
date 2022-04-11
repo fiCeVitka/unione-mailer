@@ -99,7 +99,9 @@ class UniOneApiTransport extends AbstractApiTransport
                 $suppressions = $this->getSuppressions($email, $envelope, true);
 
                 $this->deleteSuppressions(array_keys($suppressions));
-            } catch (HttpTransportException $exception) {}
+            } catch (HttpTransportException $exception) {
+                $this->getLogger()->debug(sprintf('HttpTransportException exception in %s: %s', __CLASS__, $exception->getMessage()));
+            }
         }
 
         $url = sprintf('https://%s/%s/%s', $this->getEndpoint(), $this->locale, self::METHOD_EMAIL_SEND);
@@ -129,27 +131,29 @@ class UniOneApiTransport extends AbstractApiTransport
     protected function getSuppressions(Email $email, Envelope $envelope, bool $deletableOnly = false): array
     {
         $result = [];
-        $emails = array_column($this->getRecipients($email, $envelope), 'email');
+        $emailsList = array_column($this->getRecipients($email, $envelope), 'email');
         $url = sprintf('https://%s/%s/%s', $this->getEndpoint(), $this->locale, self::METHOD_SUPPRESSION_GET);
 
-        foreach ($emails as $email) {
-            $response = $this->request($url, [ 'email' => $email ])->toArray();
+        foreach ($emailsList as $emailsItem) {
+            $response = $this->request($url, [ 'email' => $emailsItem ])->toArray();
 
             $suppressions = $response['suppressions'] ?? [];
-            $isDeletable = (bool)count(array_filter($suppressions, fn ($suppression) => $suppression['is_deletable'] === true));
+            $isDeletable = (bool)count(array_filter($suppressions, static fn ($suppression) => $suppression['is_deletable'] === true));
 
             if ($deletableOnly && !$isDeletable) {
                 continue;
             }
 
-            $result[$email] = $suppressions;
+            $result[$emailsItem] = $suppressions;
         }
 
         return $result;
     }
 
-    protected function deleteSuppressions(string|array ...$emails): void
+    protected function deleteSuppressions(string|array $emails): void
     {
+        $emails = is_array($emails) ? $emails : [$emails];
+
         foreach ($emails as $email) {
             $this->deleteSuppression($email);
         }
