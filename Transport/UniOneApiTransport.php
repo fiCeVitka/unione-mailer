@@ -40,7 +40,7 @@ class UniOneApiTransport extends AbstractApiTransport
     /**
      * @var bool
      */
-    private $checkDelitable = false;
+    private $checkDeletable = false;
 
 
     public function __construct(
@@ -66,9 +66,9 @@ class UniOneApiTransport extends AbstractApiTransport
         $this->skipUnsubscribe = $value;
     }
 
-    public function setCheckDelitable(bool $value): void
+    public function setCheckDeletable(bool $value): void
     {
-        $this->checkDelitable = $value;
+        $this->checkDeletable = $value;
     }
 
     protected function request(string $url, array $data, string $method = 'POST'): ResponseInterface
@@ -94,7 +94,7 @@ class UniOneApiTransport extends AbstractApiTransport
 
     protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
     {
-        if ($this->checkDelitable) {
+        if ($this->checkDeletable) {
             try {
                 $suppressions = $this->getSuppressions($email, $envelope, true);
 
